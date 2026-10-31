@@ -1,0 +1,190 @@
+import io
+import logging
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
+import yfinance as yf
+
+logger = logging.getLogger(__name__)
+
+
+def fetch_csv_with_fallbacks(urls, headers):
+    """Tries to download a CSV from a list of fallback URLs."""
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                csv_data = response.read().decode("utf-8")
+            df = pd.read_csv(io.StringIO(csv_data))
+            df.columns = df.columns.str.strip().str.upper()
+            symbol_col = [col for col in df.columns if "SYMBOL" in col]
+            if symbol_col:
+                return (
+                    df[symbol_col[0]]
+                    .dropna()
+                    .astype(str)
+                    .str.strip()
+                    .tolist()
+                )
+        except Exception:
+            continue
+    return None
+
+
+def fetch_nifty_750_universe():
+    """Downloads official constituent lists from NSE India with fallback logic."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
+
+    url_map = {
+        "NIFTY 50": [
+            "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
+            "https://www.nseindia.com/content/indices/ind_nifty50list.csv",
+        ],
+        "NIFTY NEXT 50": [
+            "https://archives.nseindia.com/content/indices/ind_niftynext50list.csv",
+            "https://www.nseindia.com/content/indices/ind_niftynext50list.csv",
+        ],
+        "NIFTY MIDCAP 150": [
+            "https://archives.nseindia.com/content/indices/ind_niftymidcap150list.csv",
+            "https://archives.nseindia.com/content/indices/ind_niftymidcap150_list.csv",
+        ],
+        "NIFTY SMALLCAP 250": [
+            "https://archives.nseindia.com/content/indices/ind_niftysmallcap250list.csv",
+            "https://archives.nseindia.com/content/indices/ind_niftysmallcap250_list.csv",
+        ],
+        "NIFTY MICROCAP 250": [
+            "https://archives.nseindia.com/content/indices/ind_niftymicrocap250list.csv",
+            "https://archives.nseindia.com/content/indices/ind_niftymicrocap_microcap250list.csv",
+            "https://archives.nseindia.com/content/indices/ind_niftymicrocap250_list.csv",
+        ],
+        "NIFTY TOTAL MARKET": [
+            "https://archives.nseindia.com/content/indices/ind_niftytotalmarketlist.csv",
+            "https://archives.nseindia.com/content/indices/ind_nifty_totalmarketlist.csv",
+        ],
+    }
+
+    ticker_to_board = {}
+    classified_tickers = set()
+
+    logger.info("Fetching Nifty Total Market (750 Stocks) constituents from NSE India...")
+    for index_name in [
+        "NIFTY 50",
+        "NIFTY NEXT 50",
+        "NIFTY MIDCAP 150",
+        "NIFTY SMALLCAP 250",
+    ]:
+        symbols = fetch_csv_with_fallbacks(url_map[index_name], headers)
+        if symbols:
+            for sym in symbols:
+                ticker = f"{sym}.NS"
+                if ticker not in ticker_to_board:
+                    ticker_to_board[ticker] = index_name
+                    classified_tickers.add(ticker)
+            logger.info(f"-> Successfully loaded {len(symbols)} tickers for {index_name}")
+        else:
+            logger.info(f"[Warning] Failed to fetch {index_name}")
+
+    total_market_symbols = fetch_csv_with_fallbacks(
+        url_map["NIFTY TOTAL MARKET"], headers
+    )
+    microcap_symbols = fetch_csv_with_fallbacks(
+        url_map["NIFTY MICROCAP 250"], headers
+    )
+
+    if total_market_symbols:
+        logger.info(f"-> Successfully loaded {len(total_market_symbols)} tickers for NIFTY TOTAL MARKET")
+        deduced_microcap_count = 0
+        for sym in total_market_symbols:
+            ticker = f"{sym}.NS"
+            if ticker not in classified_tickers:
+                ticker_to_board[ticker] = "NIFTY MICROCAP 250"
+                classified_tickers.add(ticker)
+                deduced_microcap_count += 1
+        logger.info(f"-> Deduced {deduced_microcap_count} tickers for NIFTY MICROCAP 250 via Total Market subtraction.")
+    elif microcap_symbols:
+        for sym in microcap_symbols:
+            ticker = f"{sym}.NS"
+            if ticker not in classified_tickers:
+                ticker_to_board[ticker] = "NIFTY MICROCAP 250"
+                classified_tickers.add(ticker)
+        logger.info(f"-> Loaded {len(microcap_symbols)} tickers for NIFTY MICROCAP 250 directly.")
+    else:
+        logger.info("[Error] Critical failure: Could not fetch Total Market or Microcap 250 lists.")
+
+    all_tickers = list(classified_tickers)
+    logger.info(f"Total unique tickers loaded: {len(all_tickers)}\n")
+    return all_tickers, ticker_to_board
+
+
+def fetch_single_ticker_history(ticker: str, period: str = "5y") -> pd.DataFrame:
+    """Fetches historical OHLCV data for a single stock ticker from Yahoo Finance."""
+    yahoo_ticker = ticker if ".NS" in ticker or "." in ticker else f"{ticker}.NS"
+    
+    try:
+        stock = yf.Ticker(yahoo_ticker)
+        df = stock.history(period=period, auto_adjust=True)
+        
+        if df.empty:
+            logger.warning(f"No historical data returned for {yahoo_ticker}")
+            return pd.DataFrame()
+        
+        df = df.reset_index()
+        df["Instrument"] = ticker.replace(".NS", "").upper()
+        
+        rename_map = {"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}
+        df = df.rename(columns=rename_map)
+        
+        cols_to_keep = [c for c in ["date", "Instrument", "open", "high", "low", "close", "volume"] if c in df.columns]
+        return df[cols_to_keep]
+        
+    except Exception as e:
+        logger.error(f"Error fetching data for {yahoo_ticker}: {e}")
+        return pd.DataFrame()
+
+
+def fetch_historical_data(
+    tickers: list, 
+    period: str = "5y", 
+    multi_threaded: bool = True, 
+    max_workers: int = 10
+) -> pd.DataFrame:
+    """
+    Fetches historical data for a list of tickers.
+    Pass multi_threaded=True for concurrent fetching or multi_threaded=False for sequential iteration.
+    """
+    logger.info(f"Starting historical fetch for {len(tickers)} tickers (Period: {period}, Multi-threaded: {multi_threaded})...")
+    all_data = []
+
+    if multi_threaded:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_ticker = {
+                executor.submit(fetch_single_ticker_history, ticker, period): ticker 
+                for ticker in tickers
+            }
+            
+            for future in as_completed(future_to_ticker):
+                ticker = future_to_ticker[future]
+                try:
+                    df = future.result()
+                    if not df.empty:
+                        all_data.append(df)
+                except Exception as e:
+                    logger.error(f"Thread failed for {ticker}: {e}")
+    else:
+        for ticker in tickers:
+            try:
+                df = fetch_single_ticker_history(ticker, period)
+                if not df.empty:
+                    all_data.append(df)
+            except Exception as e:
+                logger.error(f"Sequential fetch failed for {ticker}: {e}")
+
+    if not all_data:
+        logger.warning("Historical fetch returned no data across all tickers.")
+        return pd.DataFrame()
+
+    combined_df = pd.concat(all_data, ignore_index=True)
+    logger.info(f"Historical fetch complete. Total rows fetched: {len(combined_df)}")
+    return combined_df
