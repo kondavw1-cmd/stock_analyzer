@@ -3,7 +3,17 @@ import argparse
 
 def parse_arguments():
     """Parses command-line arguments for pipeline control."""
-    parser = argparse.ArgumentParser(description="Portfolio Analyzer & EOD Pipeline Engine")
+    parser = argparse.ArgumentParser(description="Stock Analysis & Portfolio Engine")
+
+    # 1. Set up command-line argument parser
+    parser.add_argument(
+        "--skip-email", 
+        action="store_true", 
+        help="Skip sending email reports with attachments during execution"
+    )
+    args = parser.parse_args()
+
+    print("[INFO] PortfolioEngine: Starting pipeline execution...")
     parser.add_argument(
         "--mode",
         type=str,

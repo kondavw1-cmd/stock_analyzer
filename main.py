@@ -224,14 +224,19 @@ def main():
         # =====================================================================
         # Step 8. Export to Multi-Tab Excel Report
         # =====================================================================
-        email_delivery_status = export_and_email_report(
-            df_scored_results=df_scored_results,
-            universe_750_df=universe_750_df,
-            open_journal_df=open_journal_df,
-            closed_journal_df=closed_journal_df
-        )
+        if not args.skip_email:
+            print("[INFO] PortfolioEngine: Dispatching email report with attachments...")
+            email_delivery_status = export_and_email_report(
+                df_scored_results=df_scored_results,
+                universe_750_df=universe_750_df,
+                open_journal_df=open_journal_df,
+                closed_journal_df=closed_journal_df
+            )
+            export_and_email_report_status = "✅ Email with Attachment is SUCCESS" if email_delivery_status else "❌ Email with Attachment FAILED"
+        else:
+            print("[INFO] PortfolioEngine: Skipping email dispatch (--no-email flag active).")
+            export_and_email_report_status =  "Email Delivery Step Skipped"
 
-        export_and_email_report_status = "✅ Email with Attachment is SUCCESS" if email_delivery_status else "❌ Email with Attachment FAILED"
 
         # =====================================================================
         # Step 9. Sync Dataframes to Supabase PostgreSQL (Conditionally)
