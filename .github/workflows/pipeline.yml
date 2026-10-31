@@ -1,0 +1,42 @@
+name: Stock Analysis Pipeline
+
+on:
+schedule:
+# Runs Monday to Friday at 15:30 UTC (adjust to your preferred market close time)
+- cron: '30 15 * * 1-5'
+workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+run-pipeline:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v4
+
+  - name: Set up Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+
+  - name: Install uv package manager
+    uses: astral-sh/setup-uv@v5
+
+  - name: Install dependencies
+    run: uv sync --frozen
+
+  - name: Run Main Portfolio Engine
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      GMAIL_SENDER_EMAIL: ${{ secrets.GMAIL_SENDER_EMAIL }}
+      # If you store your Google OAuth token or credentials as GitHub Secrets:
+      GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+    run: |
+      # If needed, write GitHub secrets back to local files expected by python
+      echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+      echo "$GOOGLE_TOKEN_JSON" > token.json
+      
+      uv run main.py
