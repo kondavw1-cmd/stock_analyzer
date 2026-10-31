@@ -11,7 +11,6 @@ def parse_arguments():
         action="store_true", 
         help="Skip sending email reports with attachments during execution"
     )
-    args = parser.parse_args()
 
     print("[INFO] PortfolioEngine: Starting pipeline execution...")
     parser.add_argument(
