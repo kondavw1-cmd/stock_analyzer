@@ -176,7 +176,8 @@ def process_universe_metadata(raw_tickers: list, ticker_to_board_map: dict):
     stock_metadata_map = {}
     valid_tickers = []
 
-    for symbol in tqdm(raw_tickers):
+    total_tickers = len(raw_tickers)
+    for i, symbol in enumerate(raw_tickers, 1):
         try:
             result = fetch_metadata_single(symbol, ticker_to_board_map)
 
@@ -187,8 +188,12 @@ def process_universe_metadata(raw_tickers: list, ticker_to_board_map: dict):
                     stock_metadata_map[sym] = meta
                     valid_tickers.append(sym)
 
+            # Print progress milestone every 50 items or on the last item
+            if i % 50 == 0 or i == total_tickers:
+                print(f"[Progress] Processed {i}/{total_tickers} tickers...")
+
         except Exception as e:
-            logger.info(f"\n[Skipping] {symbol} Error: {e}")
+            logger.info(f"[Skipping] {symbol} Error: {e}")
 
     logger.info("\n--- Processing Complete ---")
     logger.info(f"Original Tickers Count: {len(raw_tickers)}")
