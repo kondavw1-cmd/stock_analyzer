@@ -1,25 +1,16 @@
-import os
 import logging
 import numpy as np
 import pandas as pd
-from supabase import create_client, Client
 from dotenv import load_dotenv
-
+from datetime import datetime
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+# After (using the common module)
+from src.utils.supabase_client import get_supabase_client
 
-from datetime import datetime
-
-supabase: Client = None
-if url and key:
-    try:
-        supabase = create_client(url, key)
-    except Exception as e:
-        logger.error(f"Failed to initialize Supabase client: {e}")
+supabase = get_supabase_client()
 
 def _fetch_all_existing_data(table_name):
     """Fetches all rows and all columns from Supabase."""

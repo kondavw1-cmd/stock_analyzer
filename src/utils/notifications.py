@@ -23,7 +23,7 @@ def send_discord_embed(title: str, dataframe: pd.DataFrame, color_int: int):
         return
 
     # Use tabulate to format a clean grid table ("presto" or "simple" fit best in Discord)
-    table_str = tabulate(dataframe, headers="keys", tablefmt="double_outline", showindex=False, colalign=["right", "left"])
+    table_str = tabulate(dataframe, headers="keys", tablefmt="double_outline", showindex=False)
     description = f"```\n{table_str}\n```"
 
     payload = {
@@ -39,6 +39,8 @@ def send_discord_embed(title: str, dataframe: pd.DataFrame, color_int: int):
     try:
         response = requests.post(DISCORD_WEBHOOK_URL, json=payload)
         response.raise_for_status()
+        if response.status_code==204:
+            logger.info(f"[DISCORD ALERT SUCCESS] {title}")
     except Exception as e:
         print(f"Failed to send Discord embed: {e}")
 

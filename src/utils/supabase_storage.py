@@ -3,10 +3,8 @@ from datetime import datetime, timedelta
 from supabase import create_client
 import pandas as pd
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+from src.utils.supabase_client import get_supabase_client
+supabase = get_supabase_client()
 
 BUCKET_NAME = "stock-reports"
 FOLDER_NAME = "daily-reports"
