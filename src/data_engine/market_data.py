@@ -176,7 +176,7 @@ def process_universe_metadata(raw_tickers: list, ticker_to_board_map: dict):
     stock_metadata_map = {}
     valid_tickers = []
 
-    for symbol in tqdm(raw_tickers, desc="Processing Tickers"):
+    for symbol in tqdm(raw_tickers):
         try:
             result = fetch_metadata_single(symbol, ticker_to_board_map)
 
