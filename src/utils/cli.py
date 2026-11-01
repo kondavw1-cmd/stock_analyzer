@@ -7,9 +7,9 @@ def parse_arguments():
 
     # 1. Set up command-line argument parser
     parser.add_argument(
-        "--skip-email", 
+        "--skip-upload", 
         action="store_true", 
-        help="Skip sending email reports with attachments during execution"
+        help="Skip upload reports to supabase storage during execution"
     )
 
     print("[INFO] PortfolioEngine: Starting pipeline execution...")

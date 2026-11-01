@@ -1,16 +1,16 @@
 DROP TABLE IF EXISTS public.closed_journal;
 
 CREATE TABLE public.closed_journal (
-    "Instrument" TEXT,
-    "Status" TEXT,
-    "Entry Date" TEXT,
-    "Exit Date" TEXT,
-    "Holding Duration" TEXT,
-    "Qty" INTEGER,
-    "Avg. Buy Cost" NUMERIC,
-    "Avg. Sell Cost" NUMERIC,
-    "Buy Value" NUMERIC,
-    "Sell Value" NUMERIC,
+    "Instrument" TEXT NOT NULL,
+    "Status" TEXT NOT NULL,
+    "Entry Date" TEXT NOT NULL,
+    "Exit Date" TEXT NOT NULL,
+    "Holding Duration" TEXT NOT NULL,
+    "Qty" INTEGER NOT NULL,
+    "Avg. Buy Cost" NUMERIC NOT NULL,
+    "Avg. Sell Cost" NUMERIC NOT NULL,
+    "Buy Value" NUMERIC NOT NULL,
+    "Sell Value" NUMERIC NOT NULL,
     "Gross PnL" NUMERIC,
     "Total Charges" NUMERIC,
     "Net Pnl" NUMERIC,
@@ -22,6 +22,7 @@ CREATE TABLE public.closed_journal (
     "Sector Index (P-82%)" NUMERIC,
     "REVISION SCORE" NUMERIC,
     "ACTION" TEXT,
-    "Created At" VARCHAR(10) NOT NULL,                    -- Format: "YYYY-MM-DD"
-    "Last Updated At" VARCHAR(10) NOT NULL                   -- Format: "YYYY-MM-DD"
+    "Last Updated At" VARCHAR(10) NOT NULL,                   -- Format: "YYYY-MM-DD"
+    -- Define a composite primary key using multiple columns
+    CONSTRAINT pk_closed_journal PRIMARY KEY ("Instrument", "Status", "Entry Date", "Exit Date", "Qty", "Avg. Buy Cost")
 );

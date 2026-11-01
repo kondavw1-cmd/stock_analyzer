@@ -13,6 +13,7 @@ import warnings
 # Suppress all warnings coming from yfinance internals
 warnings.filterwarnings("ignore", module="yfinance.*")
 
+
 from config.settings import (
     ALLOCATION_PCT,
     TOTAL_CAPITAL,
@@ -37,7 +38,8 @@ from src.utils.helpers import (
     enrich_closed_journal_df,
     enrich_open_journal_df,
 )
-from src.utils.email_helper import export_and_email_report
+from src.utils.supabase_storage import export_and_upload_report_and_prune
+
 from src.utils.database import (
     save_dataframe_to_sql,
     process_action_history,
@@ -79,9 +81,9 @@ def main():
     os.makedirs(CACHE_DIR, exist_ok=True)
 
     try:
-        # =====================================================================
-        # Step 1. Fetch Universe & Board Map (Debug vs Full)
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEP 1. Fetch Universe & Board Map (Debug vs Full)")
+        logger.info("=====================================================================")
         if args.mode == "debug":
             logger.info(f"Using DEBUG ticker list ({len(DEBUG_TICKERS)} stocks) for rapid testing.")
             raw_tickers = DEBUG_TICKERS
@@ -105,9 +107,9 @@ def main():
                 )
                 logger.info("[Checkpoint] Saved universe checkpoint.")
 
-        # =====================================================================
-        # Step 2. Process Metadata & Financial Statements
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEP 2. Process Metadata & Financial Statements")
+        logger.info("=====================================================================")
         if os.path.exists(METADATA_CACHE):
             logger.info("[Checkpoint] Loading metadata and financial statements from cache...")
             meta_cache_df = pd.read_pickle(METADATA_CACHE)
@@ -127,9 +129,9 @@ def main():
             )
             logger.info("[Checkpoint] Saved metadata checkpoint.")
 
-        # =====================================================================
-        # Step 3. Download Historical Data & Compute Returns
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("Step 3. Download Historical Data & Compute Returns")
+        logger.info("=====================================================================")
         if os.path.exists(RETURNS_CACHE):
             logger.info("[Checkpoint] Loading historical returns matrix from cache...")
             ret_cache_df = pd.read_pickle(RETURNS_CACHE)
@@ -159,9 +161,9 @@ def main():
             )
             logger.info("[Checkpoint] Saved historical returns checkpoint.")
 
-        # =====================================================================
-        # Step 4 & 5. Risk/Return Calculation & Grading
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEPS 4 & 5. Risk/Return Calculation & Grading")
+        logger.info("=====================================================================")
         if os.path.exists(SCORES_CACHE):
             logger.info("[Checkpoint] Loading scored results from cache...")
             df_scored_results = pd.read_csv(SCORES_CACHE)
@@ -182,9 +184,9 @@ def main():
 
         df_scored_results = df_scored_results[~df_scored_results["Ticker"].str.contains("GOLDBEES", case=False, na=False)]
 
-        # =====================================================================
-        # Step 6. Process Tradebook Journals
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEP 6. Process Tradebook Journals")
+        logger.info("=====================================================================")
         tradebook_path = os.path.join("data", "tradebook-DIZ015-EQ.csv")
         open_journal_df = pd.DataFrame()
         closed_journal_df = pd.DataFrame()
@@ -205,9 +207,9 @@ def main():
         else:
             logger.warning(f"Tradebook CSV not found at '{tradebook_path}'. Skipping journals.")
 
-        # =====================================================================
-        # Step 7. Build Universe 750 Scores DataFrame (Cleaned of Temp computations)
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("Step 7. Build Universe 750 Scores DataFrame (Cleaned of Temp computations)")
+        logger.info("=====================================================================")
         universe_750_df = build_universe_750_scores_df(
             df_scored_results=df_scored_results,
             total_capital=TOTAL_CAPITAL,
@@ -221,46 +223,46 @@ def main():
             )
         ]
 
-        # =====================================================================
-        # Step 8. Export to Multi-Tab Excel Report
-        # =====================================================================
-        if not args.skip_email:
-            print("[INFO] PortfolioEngine: Dispatching email report with attachments...")
-            email_delivery_status = export_and_email_report(
+        logger.info("=====================================================================")
+        logger.info("STEP 8. Export to Multi-Tab Excel Report & Upload to Supabase Storage")
+        logger.info("=====================================================================")
+        if not args.skip_upload:
+            print("[INFO] PortfolioEngine: Upload report to Supabase Storage...")
+            upload_status = export_and_upload_report_and_prune(
                 df_scored_results=df_scored_results,
                 universe_750_df=universe_750_df,
                 open_journal_df=open_journal_df,
                 closed_journal_df=closed_journal_df
             )
-            export_and_email_report_status = "✅ Email with Attachment is SUCCESS" if email_delivery_status else "❌ Email with Attachment FAILED"
+            upload_report_and_prune_status = "✅ Upload report to Supabase Storage is SUCCESS" if upload_status else "❌ Upload report to Supabase Storage is FAILED"
         else:
             print("[INFO] PortfolioEngine: Skipping email dispatch (--no-email flag active).")
-            export_and_email_report_status =  "Email Delivery Step Skipped"
+            upload_report_and_prune_status =  "Upload report to Supabase Storage is Skipped"
 
 
-        # =====================================================================
-        # Step 9. Sync Dataframes to Supabase PostgreSQL (Conditionally)
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEP 9. Sync Dataframes to Supabase PostgreSQL (Conditionally)")
+        logger.info("=====================================================================")
         if not args.skip_db:
             logger.info("Syncing processed dataframes to Supabase...")
-            save_dataframe_to_sql(universe_750_df, "universe_of_750_stocks_scores", if_exists="replace")
             # 2. Process and inject the rolling 4-week ACTION history
-            universe_750_df = process_action_history(universe_750_df)
+            universe_750_df = process_action_history(universe_750_df, "universe_of_750_stocks_scores")
+            save_dataframe_to_sql(universe_750_df, "universe_of_750_stocks_scores")
             if not open_journal_df.empty:
-                save_dataframe_to_sql(open_journal_df, "open_partial_journal", if_exists="replace")
+                save_dataframe_to_sql(open_journal_df, "open_partial_journal")
             if not closed_journal_df.empty:
-                save_dataframe_to_sql(closed_journal_df, "closed_journal", if_exists="replace")
+                save_dataframe_to_sql(closed_journal_df, "closed_journal")
         else:
             logger.info("[CLI] Skipping Supabase DB sync (--skip-db enabled).")
 
-        # =====================================================================
-        # Step 10. Dispatch Success Notifications (Conditionally)
-        # =====================================================================
+        logger.info("=====================================================================")
+        logger.info("STEP 10. Dispatch Success Notifications (Conditionally)")
+        logger.info("=====================================================================")
         if not args.skip_notifications:
             success_message = (
                 f"Successfully completed EOD pipeline run for {CURRENT_RUN_DATE} ({args.mode.upper()} mode).\n"
                 f"Processed {len(df_scored_results)} valid tickers.\n"
-                f"{export_and_email_report_status}"
+                f"{upload_report_and_prune_status}"
             )
             notify_pipeline_status(status="SUCCESS", details=success_message, is_error=False)
 

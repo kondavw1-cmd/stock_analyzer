@@ -1,12 +1,12 @@
 DROP TABLE IF EXISTS public.open_partial_journal;
 
 CREATE TABLE public.open_partial_journal (
-    "Instrument" TEXT,
-    "Status" TEXT,
-    "Entry Date" TEXT,
-    "Holding Duration" TEXT,
-    "Qty." INTEGER,
-    "Avg. cost" NUMERIC,
+    "Instrument" TEXT NOT NULL,
+    "Status" TEXT NOT NULL,
+    "Entry Date" TEXT NOT NULL,
+    "Holding Duration" TEXT NOT NULL,
+    "Qty." INTEGER NOT NULL,
+    "Avg. cost" NUMERIC NOT NULL,
     "LTP" NUMERIC,
     "Invested" NUMERIC,
     "Cur. val" NUMERIC,
@@ -25,6 +25,7 @@ CREATE TABLE public.open_partial_journal (
     "Sector Index (P-82%)" NUMERIC,
     "REVISION SCORE" NUMERIC,
     "ACTION" TEXT,
-    "Created At" VARCHAR(10) NOT NULL,                    -- Format: "YYYY-MM-DD"
-    "Last Updated At" VARCHAR(10) NOT NULL                   -- Format: "YYYY-MM-DD"
+    "Last Updated At" VARCHAR(10) NOT NULL,                   -- Format: "YYYY-MM-DD"
+    -- Define a composite primary key using multiple columns
+    CONSTRAINT pk_open_partial_journal PRIMARY KEY ("Instrument", "Status", "Entry Date", "Qty.", "Avg. cost")
 );
