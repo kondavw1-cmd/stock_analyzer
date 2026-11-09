@@ -2,8 +2,8 @@ name: Stock Analysis Pipeline
 
 on:
   schedule:
-    # Runs Monday through Friday at 16:00 UTC (9:30 PM IST)
-    - cron: '0 16 * * 1-5'
+    # Runs Monday through Friday at 10:30 UTC (4:00 PM IST)
+    - cron: '30 10 * * 1-5'
   workflow_dispatch:
 
 jobs:

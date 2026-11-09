@@ -93,7 +93,7 @@ with tab2:
         closed_journal_default_cols = [c for c in ["Instrument", "Status", "Sector", "Exit Date", "REVISION SCORE", "ACTION"] if c in filtered_closed.columns]
         filtered_closed_df = render_filtered_dataframe(filtered_closed, tab_key="closed_journal", default_show=closed_journal_default_cols)
         
-        st.dataframe(filtered_closed_df, use_container_width=True, hide_index=True)
+        st.dataframe(filtered_closed_df, use_container_width=True, height=500, hide_index=True)
     else:
         st.info("No closed journal records found in Supabase.")
 

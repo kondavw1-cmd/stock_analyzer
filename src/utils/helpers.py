@@ -132,7 +132,7 @@ def enrich_open_journal_df(
 
     scored_map = {}
     for _, r in df_scored_results.iterrows():
-        t = str(r["Ticker"]).replace(".NS", "").upper()
+        t = str(r["Ticker"]).replace(".NS", "").upper().strip()
         scored_map[t] = {
             "Market CAP": r.get("Market_Cap_Tier", ""),
             "ATH (P-66%)": r.get("ATH_Price_Grade", ""),
@@ -145,7 +145,7 @@ def enrich_open_journal_df(
 
     enriched_rows = []
     for _, row in open_journal_df.iterrows():
-        inst = str(row["Instrument"]).replace(".NS", "").upper()
+        inst = str(row["Instrument"]).replace(".NS", "").upper().strip()
         d = row.to_dict()
         scores = scored_map.get(
             inst,
@@ -176,7 +176,7 @@ def enrich_closed_journal_df(
 
     scored_map = {}
     for _, r in df_scored_results.iterrows():
-        t = str(r["Ticker"]).replace(".NS", "").upper()
+        t = str(r["Ticker"]).replace(".NS", "").upper().strip()
         scored_map[t] = {
             "Market CAP": r.get("Market_Cap_Tier", ""),
             "ATH (P-66%)": r.get("ATH_Price_Grade", ""),
@@ -189,7 +189,7 @@ def enrich_closed_journal_df(
 
     enriched_rows = []
     for _, row in closed_journal_df.iterrows():
-        inst = str(row.get("symbol", row.get("Instrument", ""))).replace(".NS", "").upper()
+        inst = str(row.get("symbol", row.get("Instrument", ""))).replace(".NS", "").upper().strip()
         d = row.to_dict()
         scores = scored_map.get(
             inst,
