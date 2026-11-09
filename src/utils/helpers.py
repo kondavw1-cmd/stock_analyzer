@@ -158,12 +158,14 @@ def enrich_open_journal_df(
     # Vectorized left join
     merged_df = open_df.merge(scored_df[cols_to_merge], on="_join_key", how="left")
     
-    # Fill missing values with empty strings for consistency
     score_cols = ["Market_Cap_Tier", "ATH_Price_Grade", "ATH_Profit_Grade", "Nifty_Alpha_Grade", "Sector_Alpha_Grade", "Review_Score", "ACTION"]
     for col in score_cols:
         if col in merged_df.columns:
-            merged_df[col] = merged_df[col].fillna("")
-
+            if pd.api.types.is_numeric_dtype(merged_df[col]):
+                merged_df[col] = merged_df[col].fillna(0) # or fillna(None)
+            else:
+                merged_df[col] = merged_df[col].fillna("")
+    
     # Clean up temp join key and sort
     merged_df = merged_df.drop(columns=["_join_key"])
     return merged_df.sort_values(inst_col)
@@ -192,7 +194,10 @@ def enrich_closed_journal_df(
     score_cols = ["Market_Cap_Tier", "ATH_Price_Grade", "ATH_Profit_Grade", "Nifty_Alpha_Grade", "Sector_Alpha_Grade", "Review_Score", "ACTION"]
     for col in score_cols:
         if col in merged_df.columns:
-            merged_df[col] = merged_df[col].fillna("")
+            if pd.api.types.is_numeric_dtype(merged_df[col]):
+                merged_df[col] = merged_df[col].fillna(0) # or fillna(None)
+            else:
+                merged_df[col] = merged_df[col].fillna("")
 
     return merged_df.drop(columns=["_join_key"])
 
