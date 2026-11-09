@@ -8,6 +8,7 @@ on:
 
 jobs:
   run-weekly:
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
