@@ -230,7 +230,7 @@ credentials.json
 token.json
 
 # Data
-*.csv
+#*.csv
 *.xlsx
 
 .python-version
