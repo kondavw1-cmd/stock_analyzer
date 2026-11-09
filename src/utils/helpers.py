@@ -121,92 +121,80 @@ def calculate_holding_duration_in_weeks(entry_time, exit_time=None) -> str:
     except Exception as e:
         return ""
 
+def _clean_ticker_series(series: pd.Series) -> pd.Series:
+    """Safely cleans ticker strings by removing exchange suffixes, spaces, and converting to uppercase."""
+    if series is None or series.empty:
+        return pd.Series(dtype=str)
+    return (
+        series.astype(str)
+        .str.replace(".NS", "", regex=False)
+        .str.replace(".BO", "", regex=False)
+        .str.upper()
+        .str.strip()
+    )
+
 def enrich_open_journal_df(
     open_journal_df: pd.DataFrame, df_scored_results: pd.DataFrame
 ) -> pd.DataFrame:
-    """Enriches open_journal_df with scoring and grading columns from df_scored_results."""
+    """Enriches open_journal_df with scoring and grading columns from df_scored_results without renaming."""
     if open_journal_df is None or open_journal_df.empty:
         return open_journal_df
     if df_scored_results is None or df_scored_results.empty:
         return open_journal_df
 
-    scored_map = {}
-    for _, r in df_scored_results.iterrows():
-        t = str(r["Ticker"]).replace(".NS", "").upper().strip()
-        scored_map[t] = {
-            "Market CAP": r.get("Market_Cap_Tier", ""),
-            "ATH (P-66%)": r.get("ATH_Price_Grade", ""),
-            "ATP (P-75%)": r.get("ATH_Profit_Grade", ""),
-            "Nifty 500 [OTP] (P-82%)": r.get("Nifty_Alpha_Grade", ""),
-            "Sector Index (P-82%)": r.get("Sector_Alpha_Grade", ""),
-            "REVISION SCORE": r.get("Review_Score", ""),
-            "ACTION": r.get("ACTION", ""),
-        }
+    open_df = open_journal_df.copy()
+    scored_df = df_scored_results.copy()
 
-    enriched_rows = []
-    for _, row in open_journal_df.iterrows():
-        inst = str(row["Instrument"]).replace(".NS", "").upper().strip()
-        d = row.to_dict()
-        scores = scored_map.get(
-            inst,
-            {
-                "Market CAP": "",
-                "ATH (P-66%)": "",
-                "ATP (P-75%)": "",
-                "Nifty 500 [OTP] (P-82%)": "",
-                "Sector Index (P-82%)": "",
-                "REVISION SCORE": "",
-                "ACTION": "",
-            },
-        )
-        d.update(scores)
-        enriched_rows.append(d)
+    # Determine instrument / symbol column dynamically
+    inst_col = "Instrument" if "Instrument" in open_df.columns else "symbol"
+    
+    # Create standardized join keys
+    open_df["_join_key"] = _clean_ticker_series(open_df[inst_col])
+    scored_df["_join_key"] = _clean_ticker_series(scored_df["Ticker"])
 
-    return pd.DataFrame(enriched_rows).sort_values("Instrument")
+    # Drop duplicate join key columns from scored_results if they overlap
+    cols_to_merge = [c for c in scored_df.columns if c != inst_col]
+    
+    # Vectorized left join
+    merged_df = open_df.merge(scored_df[cols_to_merge], on="_join_key", how="left")
+    
+    # Fill missing values with empty strings for consistency
+    score_cols = ["Market_Cap_Tier", "ATH_Price_Grade", "ATH_Profit_Grade", "Nifty_Alpha_Grade", "Sector_Alpha_Grade", "Review_Score", "ACTION"]
+    for col in score_cols:
+        if col in merged_df.columns:
+            merged_df[col] = merged_df[col].fillna("")
+
+    # Clean up temp join key and sort
+    merged_df = merged_df.drop(columns=["_join_key"])
+    return merged_df.sort_values(inst_col)
 
 
 def enrich_closed_journal_df(
     closed_journal_df: pd.DataFrame, df_scored_results: pd.DataFrame
 ) -> pd.DataFrame:
-    """Enriches closed_journal_df with scoring and grading columns from df_scored_results."""
+    """Enriches closed_journal_df with scoring and grading columns from df_scored_results without renaming."""
     if closed_journal_df is None or closed_journal_df.empty:
         return closed_journal_df
     if df_scored_results is None or df_scored_results.empty:
         return closed_journal_df
 
-    scored_map = {}
-    for _, r in df_scored_results.iterrows():
-        t = str(r["Ticker"]).replace(".NS", "").upper().strip()
-        scored_map[t] = {
-            "Market CAP": r.get("Market_Cap_Tier", ""),
-            "ATH (P-66%)": r.get("ATH_Price_Grade", ""),
-            "ATP (P-75%)": r.get("ATH_Profit_Grade", ""),
-            "Nifty 500 [OTP] (P-82%)": r.get("Nifty_Alpha_Grade", ""),
-            "Sector Index (P-82%)": r.get("Sector_Alpha_Grade", ""),
-            "REVISION SCORE": r.get("Review_Score", ""),
-            "ACTION": r.get("ACTION", ""),
-        }
+    closed_df = closed_journal_df.copy()
+    scored_df = df_scored_results.copy()
 
-    enriched_rows = []
-    for _, row in closed_journal_df.iterrows():
-        inst = str(row.get("symbol", row.get("Instrument", ""))).replace(".NS", "").upper().strip()
-        d = row.to_dict()
-        scores = scored_map.get(
-            inst,
-            {
-                "Market CAP": "",
-                "ATH (P-66%)": "",
-                "ATP (P-75%)": "",
-                "Nifty 500 [OTP] (P-82%)": "",
-                "Sector Index (P-82%)": "",
-                "REVISION SCORE": "",
-                "ACTION": "",
-            },
-        )
-        d.update(scores)
-        enriched_rows.append(d)
+    symbol_col = "symbol" if "symbol" in closed_df.columns else "Instrument"
+    
+    closed_df["_join_key"] = _clean_ticker_series(closed_df[symbol_col])
+    scored_df["_join_key"] = _clean_ticker_series(scored_df["Ticker"])
 
-    return pd.DataFrame(enriched_rows)
+    cols_to_merge = [c for c in scored_df.columns if c != symbol_col]
+    merged_df = closed_df.merge(scored_df[cols_to_merge], on="_join_key", how="left")
+
+    score_cols = ["Market_Cap_Tier", "ATH_Price_Grade", "ATH_Profit_Grade", "Nifty_Alpha_Grade", "Sector_Alpha_Grade", "Review_Score", "ACTION"]
+    for col in score_cols:
+        if col in merged_df.columns:
+            merged_df[col] = merged_df[col].fillna("")
+
+    return merged_df.drop(columns=["_join_key"])
 
 def build_universe_750_scores_df(
     df_scored_results: pd.DataFrame,
