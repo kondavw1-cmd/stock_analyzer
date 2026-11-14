@@ -2,8 +2,8 @@ name: Stock Analysis Pipeline
 
 on:
   schedule:
-    # Runs Monday through Friday at 10:30 UTC (4:00 PM IST)
-    - cron: '30 10 * * 1-5'
+    # Runs Every Friday at 10:30 UTC (4:00 PM IST)
+    - cron: '30 10 * * 5'
   workflow_dispatch:
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         run: |
           uv sync
 
-      - name: Execute Pipeline
+      - name: Execute Main Pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
