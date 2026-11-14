@@ -51,6 +51,8 @@ from src.utils.notifications import (
 )
 from src.utils.cli import parse_arguments
 
+from src.utils.momentum import compute_momentum_snapshots_df
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -226,6 +228,15 @@ def main():
         logger.info("=====================================================================")
         logger.info("STEP 8. Export to Multi-Tab Excel Report & Upload to Supabase Storage")
         logger.info("=====================================================================")
+        try:
+            # Inside your main pipeline flow after df_scored_results is generated:
+            sector_momentum_df, industry_momentum_df = compute_momentum_snapshots_df(df_scored_results)
+
+            # Save using your existing utility function
+            save_dataframe_to_sql(sector_momentum_df, "sector_momentum_history")
+            save_dataframe_to_sql(industry_momentum_df, "industry_momentum_history")
+        except Exception as e:
+            print(f"[Pipeline Error] Failed to save momentum snapshots: {e}")
         if not args.skip_upload:
             print("[INFO] PortfolioEngine: Upload report to Supabase Storage...")
             upload_status = export_and_upload_report_and_prune(

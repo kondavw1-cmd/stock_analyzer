@@ -20,4 +20,5 @@ dependencies = [
     "google-auth-oauthlib",
     "python-dotenv>=1.2.4",
     "tabulate>=0.10.0",
+    "plotly>=7.1.0",
 ]

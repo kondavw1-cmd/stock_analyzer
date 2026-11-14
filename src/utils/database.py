@@ -26,7 +26,7 @@ def _fetch_all_existing_data(table_name):
         print(f"[WARNING] Could not fetch existing data: {e}")
 
 def save_dataframe_to_sql(df: pd.DataFrame, table_name: str):
-    """Saves a pandas DataFrame to Supabase using the REST API client with NaN cleaning."""
+    """Saves a pandas DataFrame to Supabase using the REST API client with NaN cleaning and schema adaptation."""
     if df is None or df.empty:
         logger.warning(f"DataFrame for table '{table_name}' is empty. Skipping upload.")
         return
@@ -44,24 +44,31 @@ def save_dataframe_to_sql(df: pd.DataFrame, table_name: str):
         # Convert any remaining invalid/null floats
         df_clean = df_clean.astype(object).where(pd.notnull(df_clean), None)
 
-        # Before calling save_dataframe_to_sql
-        # Generate full ISO timestamp string
-        run_timestamp = datetime.now().strftime('%Y-%m-%d')
-        df_clean["Last Updated At"] = run_timestamp
+        # Step 2: Conditional column injection based on table schema type
+        historical_tables = ["sector_momentum_history", "industry_momentum_history"]
+        
+        if table_name not in historical_tables:
+            # Logic for main live/scored tables (e.g., universe_of_750_stocks_scores)
+            run_timestamp = datetime.now().strftime('%Y-%m-%d')
+            df_clean["Last Updated At"] = run_timestamp
 
-        if table_name in ["universe_of_750_stocks_scores"]:
-            # If it's a brand new record, you can also inject "Created At" if not already present
-            instrument_kyes, _ = _fetch_all_existing_data(table_name)
-            if len(instrument_kyes)==0:
+            if table_name in ["universe_of_750_stocks_scores"]:
+                instrument_kyes, _ = _fetch_all_existing_data(table_name)
+                if len(instrument_kyes) == 0:
                     df_clean["Created At"] = run_timestamp
-            else:
-                for instrument, created_at in instrument_kyes.items():
-                    if instrument not in df_clean["Instrument"].values:
-                        df_clean["Created At"] = run_timestamp
-                    else:
-                        df_clean["Created At"] = created_at
-    
-        # Convert DataFrame records to a list of dictionaries
+                else:
+                    for instrument, created_at in instrument_kyes.items():
+                        if instrument not in df_clean["Instrument"].values:
+                            df_clean["Created At"] = run_timestamp
+                        else:
+                            df_clean["Created At"] = created_at
+        else:
+            # Logic for historical snapshot tables
+            # Ensure snapshot_date is correctly formatted as a string YYYY-MM-DD
+            if "snapshot_date" in df_clean.columns:
+                df_clean["snapshot_date"] = pd.to_datetime(df_clean["snapshot_date"]).dt.strftime('%Y-%m-%d')
+
+        # Step 3: Convert DataFrame records to a list of dictionaries
         records = df_clean.to_dict(orient="records")
 
         # Insert records in chunks of 500 to respect payload limits
