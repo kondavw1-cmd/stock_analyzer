@@ -56,6 +56,8 @@ Using `uv` with lockfile management (`pyproject.toml` and `uv.lock`):
   uv sync --frozen
   ```
 
+  uv pip compile pyproject.toml -o requirements.txt
+
 ---
 
 ## 4. Legacy / `requirements.txt` Workflow

@@ -106,7 +106,9 @@ markupsafe==3.0.4
 multitasking==0.0.13
     # via yfinance
 narwhals==2.28.0
-    # via altair
+    # via
+    #   altair
+    #   plotly
 numpy==2.3.4
     # via
     #   stock-analyzer (pyproject.toml)
@@ -122,6 +124,7 @@ packaging==26.3
     # via
     #   altair
     #   deprecation
+    #   plotly
     #   streamlit
 pandas==2.3.3
     # via
@@ -134,6 +137,8 @@ pillow==13.0.0
     # via streamlit
 platformdirs==4.5.0
     # via yfinance
+plotly==7.1.0
+    # via stock-analyzer (pyproject.toml)
 postgrest==0.19.0
     # via
     #   stock-analyzer (pyproject.toml)
