@@ -1,4 +1,4 @@
-name: Price Monitor
+name: Daily Price Monitor Pipeline
 
 on:
   schedule:
