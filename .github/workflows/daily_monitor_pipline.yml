@@ -1,4 +1,4 @@
-name: Intraday Price Monitor (Hourly IST Market Hours)
+name: Price Monitor
 
 on:
   schedule:

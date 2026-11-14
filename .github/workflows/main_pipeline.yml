@@ -1,4 +1,4 @@
-name: Stock Analysis Pipeline
+name: Main Pipeline
 
 on:
   schedule:
